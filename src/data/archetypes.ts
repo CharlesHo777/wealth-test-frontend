@@ -1,0 +1,68 @@
+import { ArchetypeResult } from '../App';
+
+export const archetypes: ArchetypeResult[] = [
+  {
+    name: 'Preserver + Anchor',
+    animal: 'Elephant',
+    theme: 'Stability & Protection',
+    backgroundColor: '#e8f0f2',
+    description: 'You are the guardian of generational wealth, moving with deliberate strength and unwavering protection. Your approach is grounded in long-term family security, building legacies that endure through time.',
+    traits: ['Stable', 'Guardian', 'Family-Oriented', 'Long-term Vision'],
+  },
+  {
+    name: 'Preserver + Flow',
+    animal: 'Otter',
+    theme: 'Joyful Preservation',
+    backgroundColor: '#f8f3e8',
+    description: 'You dance through wealth with playfulness and grace, preserving resources while maintaining lightness of spirit. Your flexible approach to security brings joy to the journey of financial stewardship.',
+    traits: ['Joyful', 'Light', 'Flexible', 'Adaptive'],
+  },
+  {
+    name: 'Expander + Anchor',
+    animal: 'Tiger',
+    theme: 'Powerful Ambition',
+    backgroundColor: '#ede9f5',
+    description: 'You embody fierce ambition and strategic control, pursuing bold expansion with calculated power. Your disciplined approach to growth commands respect and drives transformative impact.',
+    traits: ['Ambitious', 'Controlling', 'Powerful', 'Driven'],
+  },
+  {
+    name: 'Expander + Flow',
+    animal: 'Falcon',
+    theme: 'Visionary Speed',
+    backgroundColor: '#f0ecf7',
+    description: 'Soaring above with unparalleled vision, you see opportunities from heights others cannot reach. Your swift, strategic movements combine speed with foresight, creating wealth through elevated perspective.',
+    traits: ['Fast', 'High-Perspective', 'Visionary', 'Strategic'],
+  },
+  {
+    name: 'Builder + Integration',
+    animal: 'Turtle',
+    theme: 'Steady Wisdom',
+    backgroundColor: '#e6f1f3',
+    description: 'With ancient wisdom and patient strength, you build wealth foundations that withstand the test of time. Your steady, spiritually-aware approach integrates material success with deeper consciousness.',
+    traits: ['Solid', 'Steady', 'Spiritual', 'Wise'],
+  },
+  {
+    name: 'Flow-Seeker + Separation',
+    animal: 'Snake',
+    theme: 'Transformative Patience',
+    backgroundColor: '#f7f1e5',
+    description: 'In stillness you wait, sensing the perfect moment for transformation. Your spiritual approach to wealth timing allows for powerful metamorphosis, shedding old patterns to embrace new abundance.',
+    traits: ['Patient', 'Transformative', 'Intuitive', 'Mystical'],
+  },
+  {
+    name: 'Anchor + Integration',
+    animal: 'Wolf',
+    theme: 'Disciplined Community',
+    backgroundColor: '#e8f3ed',
+    description: 'Independent yet deeply connected to your pack, you create wealth through disciplined action and community consciousness. Your leadership balances personal mastery with collective prosperity.',
+    traits: ['Independent', 'Community-Minded', 'Disciplined', 'Leader'],
+  },
+  {
+    name: 'Flow + Integration',
+    animal: 'Dolphin',
+    theme: 'Joyful Empowerment',
+    backgroundColor: '#e7f4ef',
+    description: 'Swimming through abundance with infectious joy, you create wealth while empowering others to rise. Your playful integration of prosperity and purpose brings healing and elevation to your community.',
+    traits: ['Joyful', 'Creative', 'Empowering', 'Healing'],
+  },
+];

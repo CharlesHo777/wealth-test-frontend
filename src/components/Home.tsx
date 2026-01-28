@@ -247,22 +247,32 @@ type NormalizedQuestion = {
   title?: string;
   prompt: string;
   options: NormalizedOption[];
+  likertMinLabel?: string;
+  likertMaxLabel?: string;
 };
 
-function getLikertRange(metadata?: Record<string, unknown>) {
+function getLikertRangeAndLabels(metadata?: Record<string, unknown>) {
   const m = metadata ?? {};
-  const pick = (...keys: string[]) => {
-    for (const k of keys) {
-      const v = m[k];
-      if (typeof v === "number" && Number.isFinite(v)) return v;
-    }
-    return undefined;
+
+  const num = (k: string) => {
+    const v = m[k];
+    return typeof v === "number" && Number.isFinite(v) ? v : undefined;
   };
 
-  const min = pick("min", "scaleMin", "likertMin", "rangeMin") ?? 1;
-  const max = pick("max", "scaleMax", "likertMax", "rangeMax") ?? 5;
+  const str = (k: string) => {
+    const v = m[k];
+    return typeof v === "string" ? v : undefined;
+  };
 
-  return { min, max };
+  const min = num("minValue") ?? num("min") ?? 1;
+  const max = num("maxValue") ?? num("max") ?? 5;
+
+  return {
+    min,
+    max,
+    minLabel: str("minLabel"),
+    maxLabel: str("maxLabel"),
+  };
 }
 
 function normalizeApiQuestions(apiQuestions: ApiQuestion[]): NormalizedQuestion[] {
@@ -270,20 +280,38 @@ function normalizeApiQuestions(apiQuestions: ApiQuestion[]): NormalizedQuestion[
     .slice()
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((q) => {
-      if (q.type === "MCQ" && Array.isArray(q.options)) {
-        const options = q.options
+      const qType = String(q.type ?? "").toLowerCase();
+
+      const isMcq = qType === "mcq" || (Array.isArray(q.options) && q.options.length > 0 && qType !== "likert");
+      const isLikert = qType === "likert" || !isMcq;
+
+      if (isMcq) {
+        const options = (q.options ?? [])
           .slice()
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
           .map((o) => ({ kind: "api" as const, text: o.label, value: o.value }));
-        return { id: q.id, source: "api", dimension: q.dimension, title: q.title, prompt: q.prompt, options };
+
+        return {
+          id: q.id,
+          source: "api",
+          prompt: q.text ?? "",
+          options,
+        };
       }
 
-      // default to LIKERT-ish if unknown
-      const { min, max } = getLikertRange(q.metadata);
+      // likert fallback
+      const { min, max, minLabel, maxLabel } = getLikertRangeAndLabels(q.metadata);
       const options: NormalizedOption[] = [];
       for (let v = min; v <= max; v++) options.push({ kind: "api", text: String(v), value: v });
 
-      return { id: q.id, source: "api", dimension: q.dimension, title: q.title, prompt: q.prompt, options };
+      return {
+        id: q.id,
+        source: "api",
+        prompt: q.text ?? "",
+        options,
+        likertMinLabel: minLabel,
+        likertMaxLabel: maxLabel,
+      };
     });
 }
 
@@ -361,7 +389,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
         animal: "Elephant",
         description:
           "You are now answering questions loaded from GET /content/active. Next we’ll create a session, persist answers to the backend, submit, and show the real scored archetype + HTML report.",
-        traits: [`Questions: ${activeQuestions.length}`, `ContentVersion: ${activeContent?.contentVersion?.id ?? "unknown"}`],
+        traits: [`Questions: ${activeQuestions.length}`, `ContentVersion: ${activeContent?.contentVersionId ?? "unknown"}`],
         theme: "Integration in progress",
         backgroundColor: "#F7F1E6",
       });
@@ -803,6 +831,13 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                       <h3 className="font-['Montserrat'] text-base text-[#6B5D52] mb-8 leading-relaxed text-center">
                         {question?.prompt}
                       </h3>
+
+                      {question?.likertMinLabel || question?.likertMaxLabel ? (
+                        <div className="flex justify-between text-xs text-[#7A7A7A] mb-3">
+                          <span>{question.likertMinLabel ?? ""}</span>
+                          <span>{question.likertMaxLabel ?? ""}</span>
+                        </div>
+                      ) : null}
 
                       <div className="grid gap-4 max-w-2xl mx-auto">
                         {question?.options?.map((option, index) => (

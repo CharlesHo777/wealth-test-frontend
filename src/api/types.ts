@@ -1,35 +1,27 @@
 // src/api/types.ts
 
-export type QuestionType = "LIKERT" | "MCQ" | string;
+export type QuestionType = "likert" | "mcq" | string;
 
 export interface ApiOption {
   id: string;
-  value: string; // what backend validates MCQ against
-  label: string; // display text
+  value: string;
+  label: string;
   order?: number;
-  [k: string]: unknown;
 }
 
 export interface ApiQuestion {
   id: string;
-  type: QuestionType;
-  title?: string;
-  prompt: string;
-  description?: string;
-  dimension?: string;
-  metadata?: Record<string, unknown>; // likert range etc.
-  options?: ApiOption[]; // for MCQ
+  text: string;        // <-- backend uses "text"
+  type: QuestionType;  // <-- "likert" | "mcq"
   order?: number;
-  [k: string]: unknown;
+  metadata?: Record<string, unknown>;
+  options: ApiOption[]; // backend sends [] for likert
 }
 
 export interface ActiveContentResponse {
-  contentVersion: {
-    id: string;
-    [k: string]: unknown;
-  };
+  contentVersionId: string;
+  versionName?: string;
   questions: ApiQuestion[];
-  [k: string]: unknown;
 }
 
 export interface CreateSessionResponse {

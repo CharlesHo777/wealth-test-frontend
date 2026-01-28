@@ -26,13 +26,25 @@ async function readErrorBody(res: Response): Promise<unknown> {
   }
 }
 
+/**
+ * Safely construct a URL from either an absolute URL (http/https)
+ * or a relative path (e.g. /api/...)
+ */
+function toAbsoluteUrl(urlOrPath: string): URL {
+  // Absolute already?
+  if (/^https?:\/\//i.test(urlOrPath)) return new URL(urlOrPath);
+
+  // Relative: resolve against current origin (e.g. http://localhost:5173)
+  return new URL(urlOrPath, window.location.origin);
+}
+
 export async function fetchJSON<T>(
   path: string,
   init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {}
 ): Promise<T> {
   const { query, ...requestInit } = init;
 
-  const url = new URL(apiUrl(path));
+  const url = toAbsoluteUrl(apiUrl(path));
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v === undefined) continue;
@@ -67,7 +79,7 @@ export async function fetchText(
 ): Promise<string> {
   const { query, ...requestInit } = init;
 
-  const url = new URL(apiUrl(path));
+  const url = toAbsoluteUrl(apiUrl(path));
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v === undefined) continue;

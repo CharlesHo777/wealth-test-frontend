@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from "react";
-import type { ActiveContentResponse, AnswerValue, ApiQuestion } from "../api/types";
+import type { ActiveContentResponse, AnswerValue, ApiQuestion, AnswerDTO } from "../api/types";
 import { motion, AnimatePresence } from 'motion/react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Navigation } from './Navigation';
 import { DecorativePattern } from './DecorativePattern';
 import { ArchetypeResult } from '../App';
 import { archetypes } from '../data/archetypes';
+import { createSession } from "../api/endpoints";
+import { patchSessionAnswers } from "../api/endpoints";
 
 interface HomeProps {
   onAssessmentComplete: (result: ArchetypeResult) => void;
@@ -341,6 +343,14 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
     separation: 0,
   });
 
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionContentVersionId, setSessionContentVersionId] = useState<string | null>(null);
+  const [sessionStarting, setSessionStarting] = useState(false);
+  const [sessionStartError, setSessionStartError] = useState<string | null>(null);
+
+  const [lastSaveError, setLastSaveError] = useState<string | null>(null);
+  const [savingAnswer, setSavingAnswer] = useState(false);
+
   const isApiMode = !!activeContent?.questions?.length && !contentError;
 
   const activeQuestions = useMemo(() => {
@@ -352,11 +362,34 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const handleStartAssessment = () => {
+  const handleStartAssessment = async () => {
+    setSessionStartError(null);
+    // If we're in API mode, create a backend session first
+    if (isApiMode) {
+      try {
+        setSessionStarting(true);
+        const res = await createSession(); // POST /sessions -> { sessionId, contentVersionId } :contentReference[oaicite:1]{index=1}
+        setSessionId(res.sessionId);
+        setSessionContentVersionId(res.contentVersionId);
+        // (Optional but useful) sanity-check against /content/active response if you want:
+        // if (activeContent?.contentVersionId && activeContent.contentVersionId !== res.contentVersionId) {
+        //   console.warn("Content version mismatch between /content/active and /sessions");
+        // }
+      } catch (e) {
+        console.error("Failed to create session:", e);
+        setSessionStartError("Failed to start a session. Please try again.");
+        return; // don't open questionnaire if we can’t create a session
+      } finally {
+        setSessionStarting(false);
+      }
+    } else {
+      // local demo mode: no backend session
+      setSessionId(null);
+      setSessionContentVersionId(null);
+    }
+    // Show questionnaire + reset state (your existing logic)
     setShowQuestionnaire(true);
     setCurrentQuestion(0);
-
-    // Reset both modes safely
     setApiAnswers({});
     setScores({
       preserver: 0,
@@ -368,29 +401,41 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
       integration: 0,
       separation: 0,
     });
-
     setTimeout(() => {
       window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
     }, 300);
   };
 
-  const handleOptionClick = (question: NormalizedQuestion, option: NormalizedOption) => {
-    if (option.kind === "api") {
-      setApiAnswers((prev) => ({ ...prev, [question.id]: option.value }));
+  const handleOptionClick = async (question: NormalizedQuestion, option: NormalizedOption) => {
 
-      if (currentQuestion < activeQuestions.length - 1) {
-        setCurrentQuestion((q) => q + 1);
+    if (option.kind === "api") {
+      const value = option.value;
+
+      // Update local state immediately for snappy UI
+      setApiAnswers((prev) => ({ ...prev, [question.id]: value }));
+
+      // Persist to backend immediately
+      try {
+        await saveAnswerToBackend(question.id, value);
+      } catch {
+        // If save failed, don't advance.
         return;
       }
 
-      // Temporary placeholder until we integrate /sessions + /submit scoring
+      // Move to next question only after successful save
+      if (currentQuestion < activeQuestions.length - 1) {
+        setCurrentQuestion(currentQuestion + 1);
+        return;
+      }
+
+      // Still placeholder until submit step
       onAssessmentComplete({
-        name: "Content loaded (backend-driven)",
+        name: "All answers saved",
         animal: "Elephant",
         description:
-          "You are now answering questions loaded from GET /content/active. Next we’ll create a session, persist answers to the backend, submit, and show the real scored archetype + HTML report.",
-        traits: [`Questions: ${activeQuestions.length}`, `ContentVersion: ${activeContent?.contentVersionId ?? "unknown"}`],
-        theme: "Integration in progress",
+          "Your answers are now being saved to the backend session. Next we’ll submit the session to calculate the real archetype and render the report.",
+        traits: [`Questions: ${activeQuestions.length}`, `Session: ${sessionId}`],
+        theme: "Backend integration in progress",
         backgroundColor: "#F7F1E6",
       });
       return;
@@ -398,6 +443,25 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
 
     // Local/demo scoring path (your existing logic)
     handleAnswer(option.values);
+  };
+
+  const saveAnswerToBackend = async (questionId: string, answerValue: AnswerValue) => {
+    if (!sessionId) return; // should never happen in API mode once session is created
+    setLastSaveError(null);
+
+    const payload = { answers: [{ questionId, answerValue }] satisfies AnswerDTO[] };
+
+    try {
+      setSavingAnswer(true);
+      await patchSessionAnswers(sessionId, payload);
+    } catch (e) {
+      console.error("Failed to save answer:", e);
+      setLastSaveError("Failed to save your answer. Please check your connection and try again.");
+      // Important: do not advance automatically if save fails (keeps UI consistent with backend)
+      throw e;
+    } finally {
+      setSavingAnswer(false);
+    }
   };
 
   type ScoreDelta = Partial<Record<string, number>>;
@@ -732,9 +796,15 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                   </p>
                 )}
 
+                {sessionStartError && (
+                  <p className="font-['Montserrat'] text-sm text-red-600 tracking-wide mb-4">
+                    {sessionStartError}
+                  </p>
+                )}
+
                 <motion.button
                   onClick={handleStartAssessment}
-                  disabled={contentLoading}
+                  disabled={contentLoading || sessionStarting}
                   className="group relative overflow-hidden px-12 py-4 bg-[#C4A574] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   whileHover={contentLoading ? {} : { scale: 1.05 }}
                   whileTap={contentLoading ? {} : { scale: 0.98 }}
@@ -774,7 +844,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                   />
 
                   <span className="relative z-10 flex items-center gap-3 font-['Montserrat'] text-xs tracking-[0.25em] text-white uppercase">
-                    {contentLoading ? 'Loading...' : 'Begin Assessment'}
+                    {contentLoading ? 'Loading.' : sessionStarting ? 'Starting…' : 'Begin Assessment'}
                     {!contentLoading && (
                       <motion.span
                         animate={{ x: [0, 5, 0] }}
@@ -832,6 +902,12 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                         {question?.prompt}
                       </h3>
 
+                      {lastSaveError && (
+                        <p className="font-['Montserrat'] text-sm text-red-600 tracking-wide mb-4 text-center">
+                          {lastSaveError}
+                        </p>
+                      )}
+
                       {question?.likertMinLabel || question?.likertMaxLabel ? (
                         <div className="flex justify-between text-xs text-[#7A7A7A] mb-3">
                           <span>{question.likertMinLabel ?? ""}</span>
@@ -844,6 +920,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                           <motion.button
                             key={index}
                             onClick={() => handleOptionClick(question, option)}
+                            disabled={savingAnswer}
                             className="relative text-left p-5 bg-white/40 backdrop-blur-sm border-2 border-[#C4A574]/30 rounded-xl hover:border-[#C4A574] hover:bg-white/60 transition-all group overflow-hidden"
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}

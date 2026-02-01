@@ -6,8 +6,7 @@ import { Navigation } from './Navigation';
 import { DecorativePattern } from './DecorativePattern';
 import { ArchetypeResult } from '../App';
 import { archetypes } from '../data/archetypes';
-import { createSession } from "../api/endpoints";
-import { patchSessionAnswers } from "../api/endpoints";
+import { createSession, patchSessionAnswers, submitSession } from "../api/endpoints";
 
 interface HomeProps {
   onAssessmentComplete: (result: ArchetypeResult) => void;
@@ -328,6 +327,37 @@ function normalizeLocalQuestions(): NormalizedQuestion[] {
   }));
 }
 
+function mapSnapshotToArchetypeResult(snapshot: any): ArchetypeResult {
+  // Try common shapes:
+  // 1) { resultSnapshot: { archetype: {...} } }
+  // 2) { archetype: {...} }
+  // 3) { animal, name, description, ... }
+  const root = snapshot?.resultSnapshot ?? snapshot;
+  const a = root?.archetype ?? root;
+
+  const animal = a?.animal ?? a?.animalName ?? a?.key ?? "Unknown";
+  const name = a?.name ?? a?.title ?? "Your Result";
+  const description = a?.description ?? a?.summary ?? "Your results are ready.";
+  const traits = Array.isArray(a?.traits) ? a.traits : [];
+  const theme = a?.theme ?? "";
+  const backgroundColor = a?.backgroundColor ?? "#F7F1E6";
+
+  // Optional: if backend only returns an animal/code, reuse your local archetype library as a fallback
+  const local = archetypes.find((x) => x.animal === animal);
+  if (local) {
+    return {
+      name: local.name,
+      animal: local.animal,
+      description: local.description,
+      traits: local.traits,
+      theme: local.theme,
+      backgroundColor: local.backgroundColor,
+    };
+  }
+
+  return { name, animal, description, traits, theme, backgroundColor };
+}
+
 export function Home({ onAssessmentComplete, onNavigate, activeContent, contentLoading, contentError }: HomeProps) {
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -350,6 +380,9 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
 
   const [lastSaveError, setLastSaveError] = useState<string | null>(null);
   const [savingAnswer, setSavingAnswer] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isApiMode = !!activeContent?.questions?.length && !contentError;
 
@@ -428,16 +461,30 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
         return;
       }
 
-      // Still placeholder until submit step
-      onAssessmentComplete({
-        name: "All answers saved",
-        animal: "Elephant",
-        description:
-          "Your answers are now being saved to the backend session. Next we’ll submit the session to calculate the real archetype and render the report.",
-        traits: [`Questions: ${activeQuestions.length}`, `Session: ${sessionId}`],
-        theme: "Backend integration in progress",
-        backgroundColor: "#F7F1E6",
-      });
+      // Last question: submit the session to score + get result snapshot
+      if (!sessionId) {
+        setSubmitError("Session is missing. Please restart the assessment.");
+        return;
+      }
+
+      try {
+        setSubmitError(null);
+        setSubmitting(true);
+
+        const submitRes = await submitSession(sessionId, {});
+        // Helpful during integration: see what the backend actually returns
+        console.log("submit response:", submitRes);
+
+        const result = mapSnapshotToArchetypeResult(submitRes);
+        onAssessmentComplete(result);
+      } catch (e) {
+        console.error("Failed to submit session:", e);
+        setSubmitError("Failed to calculate your result. Please try again.");
+        // Keep them on the last question so they can retry
+        return;
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -908,6 +955,17 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                         </p>
                       )}
 
+                      {submitError && (
+                        <p className="font-['Montserrat'] text-sm text-red-600 tracking-wide mb-4 text-center">
+                          {submitError}
+                        </p>
+                      )}
+                      {submitting && (
+                        <p className="font-['Montserrat'] text-sm text-[#6B5D52] tracking-wide mb-4 text-center">
+                          Calculating your result…
+                        </p>
+                      )}
+
                       {question?.likertMinLabel || question?.likertMaxLabel ? (
                         <div className="flex justify-between text-xs text-[#7A7A7A] mb-3">
                           <span>{question.likertMinLabel ?? ""}</span>
@@ -920,7 +978,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                           <motion.button
                             key={index}
                             onClick={() => handleOptionClick(question, option)}
-                            disabled={savingAnswer}
+                            disabled={savingAnswer || submitting}
                             className="relative text-left p-5 bg-white/40 backdrop-blur-sm border-2 border-[#C4A574]/30 rounded-xl hover:border-[#C4A574] hover:bg-white/60 transition-all group overflow-hidden"
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}

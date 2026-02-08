@@ -1,13 +1,13 @@
 import { motion } from 'motion/react';
-import elephantImg from 'figma:asset/237b1794a722811c8c4d83aed6514147f6e7a37e.png';
-import elephantTransparentImg from 'figma:asset/3fd8dbf8db4586a54c92dda75d16ed4a89f5b48f.png';
-import turtleTransparentImg from 'figma:asset/2cc0fc27dd7ab3f3f1a0c8e3c1de8fec17800769.png';
-import wolfTransparentImg from 'figma:asset/7c405f6d2568a460d6258731bf972089f2179a4c.png';
-import dolphinTransparentImg from 'figma:asset/67f486c05b462e75147514f739caae6d00db8b6f.png';
-import falconTransparentImg from 'figma:asset/523e5a445f3cea3860689d630fb35f6ecb052c3b.png';
-import snakeTransparentImg from 'figma:asset/86c174e111770121a13e90c968598e7c2d9bbe51.png';
-import otterTransparentImg from 'figma:asset/2d6fb6d6a97caa63a8a3981d5832a73b6928d1f0.png';
-import tigerTransparentImg from 'figma:asset/1f1caea5f475854c6593bc6abb0893dc0c937fdd.png';
+// import elephantImg from 'figma:asset/237b1794a722811c8c4d83aed6514147f6e7a37e.png';
+import elephantTransparentImg from '../assets/elephant.png';
+import turtleTransparentImg from '../assets/turtle.png';
+import wolfTransparentImg from '../assets/wolf.png';
+import dolphinTransparentImg from '../assets/dolphin.png';
+import falconTransparentImg from '../assets/falcon.png';
+import snakeTransparentImg from '../assets/snake.png';
+import otterTransparentImg from '../assets/otter.png';
+import tigerTransparentImg from '../assets/tiger.png';
 
 interface AnimalProps {
   className?: string;

@@ -424,6 +424,11 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
     () => (isApiMode ? activeQuestions.map((q) => q.id) : []),
     [isApiMode, activeQuestions]
   );
+  const goToFirstMissingQuestion = (ids: string[]) => {
+    if (ids.length === 0) return;
+    const firstMissingIndex = activeQuestions.findIndex((q) => q.id === ids[0]);
+    if (firstMissingIndex >= 0) setCurrentQuestion(firstMissingIndex);
+  };
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -507,8 +512,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
       if (missing.length > 0) {
         setMissingQuestionIds(missing);
         setSubmitError(`Please answer all questions before submitting. (${missing.length} remaining)`);
-        const firstMissingIndex = activeQuestions.findIndex((q) => q.id === missing[0]);
-        if (firstMissingIndex >= 0) setCurrentQuestion(firstMissingIndex);
+        goToFirstMissingQuestion(missing);
         return;
       }
 
@@ -992,7 +996,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                       </h2>
                     </div>
 
-                    <div className={`relative ${isCurrentQuestionMissing ? "border border-red-300 rounded-xl p-4 bg-red-50/30" : ""}`}>
+                    <div className={`relative ${isCurrentQuestionMissing ? "border border-red-300 rounded-xl bg-red-50/30" : ""}`}>
                       <h3 className="font-['Montserrat'] text-base text-[#6B5D52] mb-8 leading-relaxed text-center">
                         {question?.prompt}
                       </h3>
@@ -1018,10 +1022,8 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                           <button
                             type="button"
                             className="font-['Montserrat'] text-xs text-[#6B5D52] underline hover:text-[#3D3D3D]"
-                            onClick={() => {
-                              const firstMissingIndex = activeQuestions.findIndex((q) => q.id === missingQuestionIds[0]);
-                              if (firstMissingIndex >= 0) setCurrentQuestion(firstMissingIndex);
-                            }}
+                            onClick={() => goToFirstMissingQuestion(missingQuestionIds)}
+                            aria-label={`Go to first unanswered question (${missingQuestionIds.length} unanswered)`}
                           >
                             Go to first unanswered question
                           </button>

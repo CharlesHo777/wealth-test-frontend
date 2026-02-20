@@ -362,26 +362,23 @@ function mapSnapshotToArchetypeResult(snapshot: any): ArchetypeResult {
 // - If local uses archetypeKey: perfect
 // - If local uses animal names: just skip local enrichment
 function mapSubmitResponseToArchetypeResult(
-  res: SubmitSessionResponse,
-  archetypes: ArchetypeResult[]
+  res: SubmitSessionResponse
 ): ArchetypeResult {
-  const { archetypeKey, archetypeName } = res.resultSnapshot;
+  const { archetypeKey, archetypeName, traitScores, confidence } = res.resultSnapshot;
 
-  // Optional: enrich from local archetype library if you have one keyed similarly.
-  // If your local data is keyed by "animal", but backend uses "builder", adjust here.
-  const local = archetypes.find((x) => x.animal === archetypeKey);
+  // Optional UI enrichment only (description/traits/theme/color), never archetype selection.
+  const local = archetypes.find((x) => x.animal === archetypeKey || x.name === archetypeName);
 
-  if (local) return local;
-
-  // Otherwise create a minimal ArchetypeResult with backend truth.
-  // (You may later add a backend endpoint that returns full descriptions/traits/theme.)
   return {
     name: archetypeName,
     animal: archetypeKey,
-    description: "",     // backend doesn’t send this in submit response
-    traits: [],          // backend doesn’t send this in submit response
-    theme: "",           // backend doesn’t send this in submit response
-    backgroundColor: "#F7F1E6",
+    archetypeKey,
+    traitScores,
+    confidence,
+    description: local?.description ?? "Your personalized wealth archetype result is ready.",
+    traits: local?.traits ?? [],
+    theme: local?.theme ?? "",
+    backgroundColor: local?.backgroundColor ?? "#F7F1E6",
   };
 }
 
@@ -523,7 +520,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
         const submitRes = await submitSession(sessionId, {});
         console.log("submit response:", submitRes); // now typed
 
-        const result = mapSubmitResponseToArchetypeResult(submitRes, archetypes);
+        const result = mapSubmitResponseToArchetypeResult(submitRes);
         onAssessmentComplete(result);
         // If you also want to store snapshot for later UI (recommended):
         // setResultSnapshot(submitRes.resultSnapshot);

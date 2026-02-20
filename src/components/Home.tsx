@@ -410,6 +410,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [missingQuestionIds, setMissingQuestionIds] = useState<string[]>([]);
 
   const isApiMode = !!activeContent?.questions?.length && !contentError;
 
@@ -419,6 +420,10 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
   }, [isApiMode, activeContent, contentError]);
 
   const [apiAnswers, setApiAnswers] = useState<Record<string, AnswerValue>>({});
+  const requiredApiQuestionIds = useMemo(
+    () => (isApiMode ? activeQuestions.map((q) => q.id) : []),
+    [isApiMode, activeQuestions]
+  );
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -451,6 +456,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
     setShowQuestionnaire(true);
     setCurrentQuestion(0);
     setApiAnswers({});
+    setMissingQuestionIds([]);
     setScores({
       preserver: 0,
       expander: 0,
@@ -470,9 +476,12 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
 
     if (option.kind === "api") {
       const value = option.value;
+      const nextApiAnswers = { ...apiAnswers, [question.id]: value };
 
       // Update local state immediately for snappy UI
-      setApiAnswers((prev) => ({ ...prev, [question.id]: value }));
+      setApiAnswers(nextApiAnswers);
+      setMissingQuestionIds([]);
+      setSubmitError(null);
 
       // Persist to backend immediately
       try {
@@ -491,6 +500,15 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
       // Last question: submit the session to score + get result snapshot
       if (!sessionId) {
         setSubmitError("Session is missing. Please restart the assessment.");
+        return;
+      }
+
+      const missing = requiredApiQuestionIds.filter((id) => nextApiAnswers[id] === undefined);
+      if (missing.length > 0) {
+        setMissingQuestionIds(missing);
+        setSubmitError(`Please answer all questions before submitting. (${missing.length} remaining)`);
+        const firstMissingIndex = activeQuestions.findIndex((q) => q.id === missing[0]);
+        if (firstMissingIndex >= 0) setCurrentQuestion(firstMissingIndex);
         return;
       }
 
@@ -671,6 +689,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
   // Safe index clamping
   const safeIndex = Math.max(0, Math.min(currentQuestion, activeQuestions.length - 1));
   const question = activeQuestions[safeIndex];
+  const isCurrentQuestionMissing = !!question && missingQuestionIds.includes(question.id);
   const progress =
     activeQuestions.length > 0 ? ((safeIndex + 1) / activeQuestions.length) * 100 : 0;
 
@@ -973,10 +992,15 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                       </h2>
                     </div>
 
-                    <div className="relative">
+                    <div className={`relative ${isCurrentQuestionMissing ? "border border-red-300 rounded-xl p-4 bg-red-50/30" : ""}`}>
                       <h3 className="font-['Montserrat'] text-base text-[#6B5D52] mb-8 leading-relaxed text-center">
                         {question?.prompt}
                       </h3>
+                      {isCurrentQuestionMissing && (
+                        <p className="font-['Montserrat'] text-xs text-red-600 tracking-wide mb-4 text-center">
+                          This question still needs an answer.
+                        </p>
+                      )}
 
                       {lastSaveError && (
                         <p className="font-['Montserrat'] text-sm text-red-600 tracking-wide mb-4 text-center">
@@ -988,6 +1012,20 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
                         <p className="font-['Montserrat'] text-sm text-red-600 tracking-wide mb-4 text-center">
                           {submitError}
                         </p>
+                      )}
+                      {missingQuestionIds.length > 0 && (
+                        <div className="mb-4 text-center">
+                          <button
+                            type="button"
+                            className="font-['Montserrat'] text-xs text-[#6B5D52] underline hover:text-[#3D3D3D]"
+                            onClick={() => {
+                              const firstMissingIndex = activeQuestions.findIndex((q) => q.id === missingQuestionIds[0]);
+                              if (firstMissingIndex >= 0) setCurrentQuestion(firstMissingIndex);
+                            }}
+                          >
+                            Go to first unanswered question
+                          </button>
+                        </div>
                       )}
                       {submitting && (
                         <p className="font-['Montserrat'] text-sm text-[#6B5D52] tracking-wide mb-4 text-center">

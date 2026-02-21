@@ -53,6 +53,11 @@ export function Result({ result, onNavigate }: ResultProps) {
               <p className="font-['Cormorant_Garamond'] text-xl italic text-gray-700 font-light tracking-wide">
                 {result.name}
               </p>
+              {result.archetypeKey && (
+                <p className="font-['Montserrat'] text-xs tracking-[0.2em] text-gray-600 uppercase mt-2">
+                  {result.archetypeKey}
+                </p>
+              )}
               {/* Minimalist elegant stars around result */}
               <motion.div
                 className="absolute -top-4 left-1/4 w-3 h-3"
@@ -114,27 +119,29 @@ export function Result({ result, onNavigate }: ResultProps) {
           >
             <h2 className="font-['Cinzel_Decorative'] text-3xl mb-6 text-gray-900 font-normal">Your Energetic Signature</h2>
             <p className="font-['Montserrat'] text-gray-700 leading-relaxed mb-8">
-              {result.description}
+              {result.description || "Your personalized wealth archetype result is ready."}
             </p>
 
-            <div className="border-t border-gray-300 pt-8">
-              <h3 className="font-['Montserrat'] text-sm tracking-[0.2em] uppercase text-gray-600 mb-6">
-                Core Attributes
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {result.traits.map((trait, index) => (
-                  <motion.div
-                    key={index}
-                    className="text-center p-4 bg-white/50 rounded-lg"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1 + index * 0.1 }}
-                  >
-                    <p className="font-['Montserrat'] text-sm text-gray-800 capitalize">{trait}</p>
-                  </motion.div>
-                ))}
+            {result.traits.length > 0 && (
+              <div className="border-t border-gray-300 pt-8">
+                <h3 className="font-['Montserrat'] text-sm tracking-[0.2em] uppercase text-gray-600 mb-6">
+                  Core Attributes
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {result.traits.map((trait, index) => (
+                    <motion.div
+                      key={index}
+                      className="text-center p-4 bg-white/50 rounded-lg"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1 + index * 0.1 }}
+                    >
+                      <p className="font-['Montserrat'] text-sm text-gray-800 capitalize">{trait}</p>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="mt-12 text-center">
               <motion.button

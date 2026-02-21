@@ -13,6 +13,9 @@ export type ArchetypeResult = {
   traits: string[];
   theme: string;
   backgroundColor: string;
+  archetypeKey?: string;
+  traitScores?: Record<string, number>;
+  confidence?: number;
 };
 
 export default function App() {

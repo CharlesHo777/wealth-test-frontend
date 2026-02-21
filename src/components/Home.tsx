@@ -9,7 +9,7 @@ import { archetypes } from '../data/archetypes';
 import { createSession, patchSessionAnswers, submitSession } from "../api/endpoints";
 
 interface HomeProps {
-  onAssessmentComplete: (result: ArchetypeResult) => void;
+  onAssessmentComplete: (result: ArchetypeResult, sessionId?: string | null) => void;
   onNavigate: (page: "home" | "result" | "registry") => void;
 
   activeContent: ActiveContentResponse | null;
@@ -521,7 +521,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
         console.log("submit response:", submitRes); // now typed
 
         const result = mapSubmitResponseToArchetypeResult(submitRes);
-        onAssessmentComplete(result);
+        onAssessmentComplete(result, sessionId);
         // If you also want to store snapshot for later UI (recommended):
         // setResultSnapshot(submitRes.resultSnapshot);
 
@@ -677,7 +677,7 @@ export function Home({ onAssessmentComplete, onNavigate, activeContent, contentL
       }
     }
 
-    onAssessmentComplete(resultArchetype);
+    onAssessmentComplete(resultArchetype, null);
   };
 
   const toggleMute = () => {

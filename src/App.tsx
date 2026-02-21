@@ -21,6 +21,7 @@ export type ArchetypeResult = {
 export default function App() {
   const [currentPage, setCurrentPage] = useState<"home" | "result" | "registry">("home");
   const [archetypeResult, setArchetypeResult] = useState<ArchetypeResult | null>(null);
+  const [submittedSessionId, setSubmittedSessionId] = useState<string | null>(null);
 
   const [activeContent, setActiveContent] = useState<ActiveContentResponse | null>(null);
   const [contentLoading, setContentLoading] = useState(true);
@@ -51,8 +52,9 @@ export default function App() {
     };
   }, []);
 
-  const handleAssessmentComplete = (result: ArchetypeResult) => {
+  const handleAssessmentComplete = (result: ArchetypeResult, sessionId: string | null = null) => {
     setArchetypeResult(result);
+    setSubmittedSessionId(sessionId);
     setCurrentPage("result");
   };
 
@@ -72,7 +74,9 @@ export default function App() {
         />
       )}
 
-      {currentPage === "result" && archetypeResult && <Result result={archetypeResult} onNavigate={navigateTo} />}
+      {currentPage === "result" && archetypeResult && (
+        <Result result={archetypeResult} onNavigate={navigateTo} sessionId={submittedSessionId} />
+      )}
 
       {currentPage === "registry" && <Registry onNavigate={navigateTo} />}
     </div>

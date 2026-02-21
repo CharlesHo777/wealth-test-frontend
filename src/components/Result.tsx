@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from "react";
 import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { ArchetypeResult } from '../App';
+import { getSessionReportHtml } from "../api/endpoints";
 import { 
   ElephantIllustration, 
   TurtleIllustration, 
@@ -15,9 +17,53 @@ import {
 interface ResultProps {
   result: ArchetypeResult;
   onNavigate: (page: 'home' | 'result' | 'registry') => void;
+  sessionId?: string | null;
 }
 
-export function Result({ result, onNavigate }: ResultProps) {
+export function Result({ result, onNavigate, sessionId }: ResultProps) {
+  const viewReportButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [reportHtml, setReportHtml] = useState<string | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
+
+  const handleViewFullReport = async () => {
+    if (!sessionId) {
+      setReportError("Full report is only available for submitted API sessions.");
+      return;
+    }
+    try {
+      setReportLoading(true);
+      setReportError(null);
+      const html = await getSessionReportHtml(sessionId);
+      setReportHtml(html);
+      setShowReport(true);
+    } catch (error) {
+      console.error("Failed to load full report:", error);
+      setReportError("Failed to load full report. Please try again.");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const closeReportModal = () => {
+    setShowReport(false);
+    viewReportButtonRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!showReport) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeReportModal();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showReport]);
+
   return (
     <div 
       className="min-h-screen transition-colors duration-1000"
@@ -144,6 +190,29 @@ export function Result({ result, onNavigate }: ResultProps) {
             )}
 
             <div className="mt-12 text-center">
+              <div className="mb-6">
+                <button
+                  ref={viewReportButtonRef}
+                  type="button"
+                  onClick={handleViewFullReport}
+                  disabled={reportLoading || !sessionId}
+                  aria-describedby={!sessionId ? "full-report-unavailable-hint" : undefined}
+                  aria-label={!sessionId ? "View full report unavailable in demo mode" : "View full report"}
+                  className="inline-flex items-center gap-3 font-['Montserrat'] text-xs tracking-[0.15em] uppercase text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {reportLoading ? "Loading report..." : "View full report"}
+                </button>
+                {!sessionId && (
+                  <p id="full-report-unavailable-hint" className="mt-2 font-['Montserrat'] text-[11px] text-gray-600">
+                    Full report is available only after API-mode submission.
+                  </p>
+                )}
+              </div>
+              {reportError && (
+                <p className="mb-6 font-['Montserrat'] text-xs text-red-700">
+                  {reportError}
+                </p>
+              )}
               <motion.button
                 onClick={() => onNavigate('registry')}
                 className="inline-flex items-center gap-4 font-['Montserrat'] text-sm tracking-[0.15em] text-gray-700 hover:text-gray-900 transition-colors"
@@ -156,6 +225,36 @@ export function Result({ result, onNavigate }: ResultProps) {
           </motion.div>
         </motion.div>
       </div>
+      {showReport && reportHtml && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 p-4 md:p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="full-report-title"
+        >
+          <div className="mx-auto flex h-full w-full max-w-6xl flex-col rounded-lg bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <h3 id="full-report-title" className="font-['Montserrat'] text-sm tracking-[0.15em] uppercase text-gray-700">
+                Full Report
+              </h3>
+              <button
+                type="button"
+                onClick={closeReportModal}
+                aria-label="Close full report dialog"
+                className="font-['Montserrat'] text-xs tracking-[0.1em] uppercase text-gray-600 hover:text-gray-900"
+              >
+                Close
+              </button>
+            </div>
+            <iframe
+              title="Full report"
+              srcDoc={reportHtml}
+              sandbox="allow-scripts"
+              className="h-full w-full rounded-b-lg"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
